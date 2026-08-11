@@ -16,7 +16,7 @@ Restart Oh My Pi after installing.
 
 ## Configure
 
-Recaps run every four minutes by default. Change **Session progress minutes** in `/settings`, or pass the flag directly:
+Recaps run every four minutes by default. Change the interval with the extension flag:
 
 ```sh
 omp --session-progress-minutes 2
