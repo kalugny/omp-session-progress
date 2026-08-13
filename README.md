@@ -6,10 +6,10 @@ The panel appears only after relevant session activity, disappears when a new pr
 
 ## Install
 
-Clone the repository into your Oh My Pi extensions directory:
+Install it from GitHub:
 
 ```sh
-git clone https://github.com/kalugny/omp-session-progress ~/.omp/agent/extensions/omp-session-progress
+omp plugin install github:kalugny/omp-session-progress
 ```
 
 Restart Oh My Pi after installing.

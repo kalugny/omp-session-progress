@@ -1,0 +1,11 @@
+{
+  "name": "omp-session-progress",
+  "version": "1.0.0",
+  "description": "Shows periodic recaps of an active Oh My Pi coding session",
+  "license": "MIT",
+  "omp": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
