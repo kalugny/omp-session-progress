@@ -8,6 +8,8 @@ import summaryPrompt from "./summary-prompt.md" with { type: "text" };
 const DEFAULT_INTERVAL_MS = 4 * 60_000;
 const MAX_HISTORY_CHARS = 24_000;
 const WIDGET_KEY = "session-progress";
+const TIMESTAMP_REFRESH_MS = 10_000;
+const RELATIVE_TIME = new Intl.RelativeTimeFormat("en", { numeric: "always" });
 
 const extension: ExtensionFactory = pi => {
 	pi.registerFlag("session-progress-minutes", {
@@ -26,6 +28,18 @@ const extension: ExtensionFactory = pi => {
 	let panelVisible = false;
 	let stopListening: (() => void) | undefined;
 	let previousSummary: string[] = [];
+	let summaryUpdatedAt = 0;
+
+	function summaryAge(): string {
+		const seconds = Math.floor((Date.now() - summaryUpdatedAt) / 1000);
+		if (seconds < 10) return "just now";
+		if (seconds < 60) return RELATIVE_TIME.format(-seconds, "second");
+		const minutes = Math.floor(seconds / 60);
+		if (minutes < 60) return RELATIVE_TIME.format(-minutes, "minute");
+		const hours = Math.floor(minutes / 60);
+		if (hours < 24) return RELATIVE_TIME.format(-hours, "hour");
+		return RELATIVE_TIME.format(-Math.floor(hours / 24), "day");
+	}
 
 	function show(lines = previousSummary): void {
 		const ctx = context;
@@ -46,7 +60,7 @@ const extension: ExtensionFactory = pi => {
 				panel.addChild(border);
 				panel.addChild(
 					new Text(
-						`${theme.bold(theme.fg("accent", "Session progress"))}${theme.fg("muted", " · Esc close")}`,
+						`${theme.bold(theme.fg("accent", "Session progress"))}${theme.fg("muted", ` · ${summaryAge()} · Esc close`)}`,
 						1,
 						0,
 					),
@@ -126,6 +140,7 @@ const extension: ExtensionFactory = pi => {
 			if (lines.length === 0) return;
 
 			previousSummary = lines;
+			summaryUpdatedAt = Date.now();
 			summarizedVersion = version;
 			show();
 		} catch (error) {
@@ -153,6 +168,7 @@ const extension: ExtensionFactory = pi => {
 		activityVersion = 0;
 		summarizedVersion = -1;
 		previousSummary = [];
+		summaryUpdatedAt = 0;
 		show();
 	}
 
@@ -167,6 +183,9 @@ const extension: ExtensionFactory = pi => {
 			ctx.ui.notify("Invalid --session-progress-minutes; using 4 minutes.", "warning");
 		}
 		ctx.setInterval(() => summarize(), intervalMs);
+		ctx.setInterval(() => {
+			if (panelVisible) show();
+		}, TIMESTAMP_REFRESH_MS);
 	});
 	pi.on("session_switch", (_event, ctx) => reset(ctx));
 	pi.on("session_branch", (_event, ctx) => reset(ctx));
@@ -176,6 +195,7 @@ const extension: ExtensionFactory = pi => {
 		context = ctx;
 		summarizedVersion = -1;
 		previousSummary = [];
+		summaryUpdatedAt = 0;
 		show();
 	});
 	pi.on("agent_start", (_event, ctx) => {
