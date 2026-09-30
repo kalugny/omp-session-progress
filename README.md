@@ -4,6 +4,8 @@ Oh My Pi extension that periodically shows a short recap of an active coding ses
 
 The panel appears only after relevant session activity, disappears when a new prompt invalidates it, and returns on the next scheduled recap. Press `Esc` to close it.
 
+The timestamp refreshes in place every ten seconds; it does not generate another recap or rebuild the panel. Headless subagent sessions do not schedule recaps.
+
 ## Install
 
 Install it from GitHub:

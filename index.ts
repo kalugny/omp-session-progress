@@ -29,6 +29,7 @@ const extension: ExtensionFactory = pi => {
 	let stopListening: (() => void) | undefined;
 	let previousSummary: string[] = [];
 	let summaryUpdatedAt = 0;
+	let refreshTimestamp: (() => void) | undefined;
 
 	function summaryAge(): string {
 		const seconds = Math.floor((Date.now() - summaryUpdatedAt) / 1000);
@@ -46,25 +47,27 @@ const extension: ExtensionFactory = pi => {
 		if (!ctx?.hasUI) return;
 		if (lines.length === 0) {
 			panelVisible = false;
+			refreshTimestamp = undefined;
 			ctx.ui.setWidget(WIDGET_KEY, undefined);
 			return;
 		}
 
 		ctx.ui.setWidget(
 			WIDGET_KEY,
-			(_tui, theme) => {
+			(tui, theme) => {
 				const panel = new Container();
 				const border = {
 					render: (width: number) => [theme.fg("dim", "─".repeat(Math.max(1, width)))],
 				};
 				panel.addChild(border);
-				panel.addChild(
-					new Text(
-						`${theme.bold(theme.fg("accent", "Session progress"))}${theme.fg("muted", ` · ${summaryAge()} · Esc close`)}`,
-						1,
-						0,
-					),
-				);
+				const title = () =>
+					`${theme.bold(theme.fg("accent", "Session progress"))}${theme.fg("muted", ` · ${summaryAge()} · Esc close`)}`;
+				const heading = new Text(title(), 1, 0);
+				panel.addChild(heading);
+				refreshTimestamp = () => {
+					heading.setText(title());
+					tui.requestRender();
+				};
 				for (const line of lines) panel.addChild(new Text(theme.fg("muted", line), 1, 0));
 				panel.addChild(border);
 				return panel;
@@ -156,11 +159,11 @@ const extension: ExtensionFactory = pi => {
 		stopListening?.();
 		stopListening = ctx.hasUI
 			? ctx.ui.onTerminalInput(data => {
-					if (!panelVisible || !matchesKey(data, "escape")) return;
-					panelVisible = false;
-					ctx.ui.setWidget(WIDGET_KEY, undefined);
-					return { consume: true };
-				})
+				if (!panelVisible || !matchesKey(data, "escape")) return;
+				panelVisible = false;
+				ctx.ui.setWidget(WIDGET_KEY, undefined);
+				return { consume: true };
+			})
 			: undefined;
 		context = ctx;
 		active = false;
@@ -174,6 +177,7 @@ const extension: ExtensionFactory = pi => {
 
 	pi.on("session_start", (_event, ctx) => {
 		reset(ctx);
+		if (!ctx.hasUI) return;
 		const configuredMinutes = Number(pi.getFlag("session-progress-minutes"));
 		const intervalMs =
 			Number.isFinite(configuredMinutes) && configuredMinutes > 0
@@ -184,7 +188,7 @@ const extension: ExtensionFactory = pi => {
 		}
 		ctx.setInterval(() => summarize(), intervalMs);
 		ctx.setInterval(() => {
-			if (panelVisible) show();
+			if (panelVisible) refreshTimestamp?.();
 		}, TIMESTAMP_REFRESH_MS);
 	});
 	pi.on("session_switch", (_event, ctx) => reset(ctx));
